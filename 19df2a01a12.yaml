@@ -1,0 +1,14 @@
+proxies:
+  - name: "测试节点2-k523t2p"
+    type: vless
+    server: 23.95.214.55
+    port: 443
+    uuid: 752f32be-c3cf-4bf9-9c13-0ed931fe69a5
+    udp: true
+    tls: true
+    network: tcp
+    servername: dl.google.com # SNI
+    reality-opts:
+      public-key: g-Wofh6JtFrQ1yFaXWAy0kj_Oaxt1zRctT5B7NSW4CY
+      short-id: "93"
+    client-fingerprint: chrome
