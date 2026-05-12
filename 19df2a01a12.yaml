@@ -1,19 +1,31 @@
 # -------------------------------------------------------------------
-# Basic Settings & Performance Optimization
-# 基础设置与性能优化
+# Android 适配版 - Clash Meta (Mihomo) 配置
 # -------------------------------------------------------------------
+
+# 基础设置
 port: 7890
 socks-port: 7891
 mixed-port: 7892
 allow-lan: true
 mode: rule
 log-level: info
-ipv6: false # Important: Prevents IPv6 routing "black holes" in HEU
+ipv6: false # 保持关闭，防止哈工程(HEU)校园网等环境下的 IPv6 路由黑洞
 external-controller: 127.0.0.1:9090
-unified-delay: true     # Unified delay calculation
-tcp-concurrent: true    # Happy Eyeballs (concurrent TCP)
+unified-delay: true
+tcp-concurrent: true
 
-# Traffic Sniffing
+# -------------------------------------------------------------------
+# TUN 模式 (Android 核心设置)
+# 确保所有 App 流量都能通过虚拟网卡被 Clash 接管
+# -------------------------------------------------------------------
+tun:
+  enable: true
+  stack: mixed             # 混合堆栈，兼顾性能与兼容性
+  dns-hijack:
+    - "any:53"             # 劫持所有 53 端口的 DNS 请求
+  auto-route: true         # 自动设置路由表
+  auto-detect-interface: true # 自动检测出口网卡（移动数据/Wi-Fi 切换必备）
+
 # 流量探测
 sniffer:
   enable: true
@@ -24,14 +36,16 @@ sniffer:
       ports: [80, 8080-8880]
       override-destination: true
 
-# DNS Optimization
-# DNS 优化
+# DNS 优化 (适配 Android 的 Fake-IP 模式)
 dns:
   enable: true
   ipv6: false
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   listen: 0.0.0.0:53
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
   nameserver:
     - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query
@@ -39,14 +53,17 @@ dns:
     - https://dns.google/dns-query
     - https://1.1.1.1/dns-query
     - tls://8.8.4.4
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
 
 # -------------------------------------------------------------------
-# Proxy Nodes
 # 代理节点
 # -------------------------------------------------------------------
 proxies:
-  # Node 1: Reality (Direct, high-speed for non-throttled environments)
-  # 节点 1: Reality (适合非限速环境的高速直连)
+  # 节点 1: Reality
   - name: "测试节点2-k523t2pu"
     type: vless
     server: 23.95.214.55
@@ -61,8 +78,7 @@ proxies:
       short-id: "93"
     client-fingerprint: chrome
 
-  # Node 2: Cloudflare Tunnel (Specifically for HEU Mobile Network)
-  # 节点 2: Cloudflare 隧道 (专为哈工程移动网优化)
+  # 节点 2: Cloudflare 隧道 (HEU 优化)
   - name: "HEU-Cloudflare-Bobo"
     type: vless
     server: bobowang.icu
@@ -70,10 +86,10 @@ proxies:
     uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
     tls: true
     udp: true
-    skip-cert-verify: true # [CRITICAL] Fixed the Timeout issue on Windows
+    skip-cert-verify: true 
     network: ws
     servername: bobowang.icu
-    alpn: [h2, http/1.1] # Mandatory for Cloudflare handshakes
+    alpn: [h2, http/1.1]
     ws-opts:
       path: /lab-stream
       headers:
@@ -81,11 +97,9 @@ proxies:
     client-fingerprint: chrome
 
 # -------------------------------------------------------------------
-# Proxy Groups
 # 代理组
 # -------------------------------------------------------------------
 proxy-groups:
-  # Main Selector
   - name: 🚀 节点选择
     type: select
     proxies:
@@ -94,7 +108,6 @@ proxy-groups:
       - "HEU-Cloudflare-Bobo"
       - "测试节点2-k523t2pu"
 
-  # Auto Test: Swaps to the lowest latency node
   - name: ♻️ 自动选择
     type: url-test
     url: https://www.google.com/generate_204 
@@ -104,7 +117,6 @@ proxy-groups:
       - "HEU-Cloudflare-Bobo"
       - "测试节点2-k523t2pu"
 
-  # AI Dedicated
   - name: 🤖 人工智能
     type: select
     proxies:
@@ -113,14 +125,12 @@ proxy-groups:
       - "测试节点2-k523t2pu"
       - 🎯 全局直连
 
-  # Social/Video (Bilibili/Zhihu)
   - name: 📱 社交/视频 (B站/知乎)
     type: select
     proxies:
       - 🎯 全局直连
       - 🚀 节点选择
 
-  # Fallback for undefined traffic
   - name: 🧱 漏网之鱼
     type: select
     proxies:
@@ -133,7 +143,7 @@ proxy-groups:
       - DIRECT
 
 # -------------------------------------------------------------------
-# Rule Providers
+# 规则集 (Rule Providers)
 # -------------------------------------------------------------------
 rule-providers:
   reject:
@@ -172,31 +182,31 @@ rule-providers:
     interval: 86400
 
 # -------------------------------------------------------------------
-# Routing Rules
 # 规则逻辑
 # -------------------------------------------------------------------
 rules:
-  # Ad Block
+  # 广告拦截
   - RULE-SET,reject,REJECT
 
-  # AI Tools
+  # AI 工具
   - DOMAIN-SUFFIX,openai.com,🤖 人工智能
   - DOMAIN-SUFFIX,anthropic.com,🤖 人工智能
   - DOMAIN-SUFFIX,gemini.google.com,🤖 人工智能
+  - DOMAIN-SUFFIX,chatgpt.com,🤖 人工智能
 
-  # Local Social Media
+  # 国内常用社交/视频
   - DOMAIN-KEYWORD,bilibili,📱 社交/视频 (B站/知乎)
   - DOMAIN-KEYWORD,zhihu,📱 社交/视频 (B站/知乎)
 
-  # General Categories
+  # 通用分类
   - RULE-SET,icloud,🎯 全局直连
   - RULE-SET,google,🚀 节点选择
   - RULE-SET,proxy,🚀 节点选择
   - RULE-SET,direct,🎯 全局直连
 
-  # Geo-Location Bypass
+  # 地理位置分流
   - GEOIP,LAN,DIRECT
   - GEOIP,CN,DIRECT,no-resolve
- 
-  # Final Catch-all
+  
+  # 最终兜底
   - MATCH,🧱 漏网之鱼
