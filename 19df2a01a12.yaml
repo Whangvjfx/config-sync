@@ -1,14 +1,202 @@
+# -------------------------------------------------------------------
+# Basic Settings & Performance Optimization
+# 基础设置与性能优化
+# -------------------------------------------------------------------
+port: 7890
+socks-port: 7891
+mixed-port: 7892
+allow-lan: true
+mode: rule
+log-level: info
+ipv6: false # Important: Prevents IPv6 routing "black holes" in HEU
+external-controller: 127.0.0.1:9090
+unified-delay: true     # Unified delay calculation
+tcp-concurrent: true    # Happy Eyeballs (concurrent TCP)
+
+# Traffic Sniffing
+# 流量探测
+sniffer:
+  enable: true
+  sniff:
+    TLS:
+      ports: [443, 8443]
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+
+# DNS Optimization
+# DNS 优化
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  listen: 0.0.0.0:53
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+  fallback:
+    - https://dns.google/dns-query
+    - https://1.1.1.1/dns-query
+    - tls://8.8.4.4
+
+# -------------------------------------------------------------------
+# Proxy Nodes
+# 代理节点
+# -------------------------------------------------------------------
 proxies:
-  - name: "测试节点2-k523t2p"
+  # Node 1: Reality (Direct, high-speed for non-throttled environments)
+  # 节点 1: Reality (适合非限速环境的高速直连)
+  - name: "测试节点2-k523t2pu"
     type: vless
     server: 23.95.214.55
-    port: 443
+    port: 52314
     uuid: 752f32be-c3cf-4bf9-9c13-0ed931fe69a5
     udp: true
     tls: true
     network: tcp
-    servername: dl.google.com # SNI
+    servername: swdist.apple.com
     reality-opts:
       public-key: g-Wofh6JtFrQ1yFaXWAy0kj_Oaxt1zRctT5B7NSW4CY
       short-id: "93"
     client-fingerprint: chrome
+
+  # Node 2: Cloudflare Tunnel (Specifically for HEU Mobile Network)
+  # 节点 2: Cloudflare 隧道 (专为哈工程移动网优化)
+  - name: "HEU-Cloudflare-Bobo"
+    type: vless
+    server: bobowang.icu
+    port: 443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    tls: true
+    udp: true
+    skip-cert-verify: true # [CRITICAL] Fixed the Timeout issue on Windows
+    network: ws
+    servername: bobowang.icu
+    alpn: [h2, http/1.1] # Mandatory for Cloudflare handshakes
+    ws-opts:
+      path: /lab-stream
+      headers:
+        Host: bobowang.icu
+    client-fingerprint: chrome
+
+# -------------------------------------------------------------------
+# Proxy Groups
+# 代理组
+# -------------------------------------------------------------------
+proxy-groups:
+  # Main Selector
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - ♻️ 自动选择
+      - 🎯 全局直连
+      - "HEU-Cloudflare-Bobo"
+      - "测试节点2-k523t2pu"
+
+  # Auto Test: Swaps to the lowest latency node
+  - name: ♻️ 自动选择
+    type: url-test
+    url: https://www.google.com/generate_204 
+    interval: 300
+    tolerance: 50
+    proxies:
+      - "HEU-Cloudflare-Bobo"
+      - "测试节点2-k523t2pu"
+
+  # AI Dedicated
+  - name: 🤖 人工智能
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - "HEU-Cloudflare-Bobo"
+      - "测试节点2-k523t2pu"
+      - 🎯 全局直连
+
+  # Social/Video (Bilibili/Zhihu)
+  - name: 📱 社交/视频 (B站/知乎)
+    type: select
+    proxies:
+      - 🎯 全局直连
+      - 🚀 节点选择
+
+  # Fallback for undefined traffic
+  - name: 🧱 漏网之鱼
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - 🎯 全局直连
+
+  - name: 🎯 全局直连
+    type: select
+    proxies:
+      - DIRECT
+
+# -------------------------------------------------------------------
+# Rule Providers
+# -------------------------------------------------------------------
+rule-providers:
+  reject:
+    type: http
+    behavior: domain
+    url: "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
+    path: ./ruleset/reject.yaml
+    interval: 86400
+
+  icloud:
+    type: http
+    behavior: domain
+    url: "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/icloud.txt"
+    path: ./ruleset/icloud.yaml
+    interval: 86400
+
+  google:
+    type: http
+    behavior: domain
+    url: "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/google.txt"
+    path: ./ruleset/google.yaml
+    interval: 86400
+
+  proxy:
+    type: http
+    behavior: domain
+    url: "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt"
+    path: ./ruleset/proxy.yaml
+    interval: 86400
+
+  direct:
+    type: http
+    behavior: domain
+    url: "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
+    path: ./ruleset/direct.yaml
+    interval: 86400
+
+# -------------------------------------------------------------------
+# Routing Rules
+# 规则逻辑
+# -------------------------------------------------------------------
+rules:
+  # Ad Block
+  - RULE-SET,reject,REJECT
+
+  # AI Tools
+  - DOMAIN-SUFFIX,openai.com,🤖 人工智能
+  - DOMAIN-SUFFIX,anthropic.com,🤖 人工智能
+  - DOMAIN-SUFFIX,gemini.google.com,🤖 人工智能
+
+  # Local Social Media
+  - DOMAIN-KEYWORD,bilibili,📱 社交/视频 (B站/知乎)
+  - DOMAIN-KEYWORD,zhihu,📱 社交/视频 (B站/知乎)
+
+  # General Categories
+  - RULE-SET,icloud,🎯 全局直连
+  - RULE-SET,google,🚀 节点选择
+  - RULE-SET,proxy,🚀 节点选择
+  - RULE-SET,direct,🎯 全局直连
+
+  # Geo-Location Bypass
+  - GEOIP,LAN,DIRECT
+  - GEOIP,CN,DIRECT,no-resolve
+ 
+  # Final Catch-all
+  - MATCH,🧱 漏网之鱼
