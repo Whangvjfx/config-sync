@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------
-# Android TV / Chromecast 适配版 - Clash Meta (Mihomo)
+# Android TV / Chromecast 终极适配版 - Clash Meta (Mihomo)
 # -------------------------------------------------------------------
 
 # 基础设置
@@ -9,11 +9,11 @@ mixed-port: 7892
 allow-lan: true
 mode: rule
 log-level: info
-ipv6: false # 保持关闭，有效防止校园网环境下的 IPv6 路由黑洞
+ipv6: false # 保持关闭，有效防止哈工程(HEU)校园网等环境下的 IPv6 路由黑洞
 external-controller: 127.0.0.1:9090
 unified-delay: true
 tcp-concurrent: true
-keep-alive-interval: 15 # 保持长连接，防止安卓休眠断流
+keep-alive-interval: 15 # 保持长连接，防止安卓电视休眠后断流
 
 # -------------------------------------------------------------------
 # TUN 模式 (Android 核心设置)
@@ -25,7 +25,7 @@ tun:
     - "any:53"
   auto-route: true
   auto-detect-interface: true
-  strict-route: true # 严格路由，防止安卓系统层面部分流量绕过代理
+  strict-route: true # 严格路由，防止安卓系统层流量绕过代理
   endpoint-independent-nat: true # 提升 UDP 穿透率，对 4K HDR 串流和 QUIC 协议更友好
 
 # 流量探测
@@ -37,8 +37,6 @@ sniffer:
     HTTP:
       ports: [80, 8080-8880]
       override-destination: true
-  force-domain:
-    - +.v2ex.com
 
 # -------------------------------------------------------------------
 # DNS 优化 (适配 Android TV 与局域网投屏)
@@ -63,7 +61,7 @@ dns:
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/4
-  # 关键：Fake-IP 过滤，确保电视时间同步、本地投屏和局域网发现不被代理接管
+  # 关键：Fake-IP 过滤，确保电视时间同步、本地投屏和局域网发现不被代理错误接管
   fake-ip-filter:
     - '*.lan'
     - '*.localdomain'
@@ -97,7 +95,7 @@ proxies:
       short-id: "93"
     client-fingerprint: chrome
 
-  # 节点 2: Cloudflare 隧道
+  # 节点 2: Cloudflare 隧道 (HEU 优化)
   - name: "HEU-Cloudflare-Bobo"
     type: vless
     server: bobowang.icu
@@ -144,7 +142,7 @@ proxy-groups:
 
   - name: ♻️ 自动选择
     type: url-test
-    url: https://www.gstatic.com/generate_204 # 改用 gstatic，延迟测试更准
+    url: https://www.gstatic.com/generate_204 # 改用 Google 电视端测速域名
     interval: 300
     tolerance: 50
     proxies:
@@ -169,39 +167,36 @@ proxy-groups:
       - DIRECT
 
 # -------------------------------------------------------------------
-# 规则逻辑 (改用 GEOSITE 节省大量内存，防止 Chromecast 杀后台)
+# 规则逻辑 (移除外部 rule-providers，改用纯本地经典规则，防止设备断网)
 # -------------------------------------------------------------------
 rules:
-  # 局域网投屏、多播、组播直连 (Chromecast 投屏必备)
+  # 局域网投屏、多播、组播直连 (Chromecast / DLNA 投屏必备)
   - DOMAIN-SUFFIX,local,DIRECT
   - IP-CIDR,224.0.0.0/3,DIRECT,no-resolve
   - IP-CIDR,239.255.255.250/32,DIRECT,no-resolve
-  - DST-PORT,8008,DIRECT # Chromecast 局域网控制端口
+  - DST-PORT,8008,DIRECT # Chromecast 局域网控制与发现端口
   - DST-PORT,8009,DIRECT
   - DST-PORT,8443,DIRECT # Cast TLS
 
-  # 广告拦截
-  - GEOSITE,category-ads-all,REJECT
+  # AI 工具分流 (改用域名后缀匹配，彻底解决旧版 geosite.dat 报错)
+  - DOMAIN-SUFFIX,openai.com,🤖 人工智能
+  - DOMAIN-SUFFIX,chatgpt.com,🤖 人工智能
+  - DOMAIN-SUFFIX,anthropic.com,🤖 人工智能
+  - DOMAIN-SUFFIX,claude.ai,🤖 人工智能
+  - DOMAIN-SUFFIX,google.com,🤖 人工智能 # 电视端 Gemini 依赖 google 核心主域名
 
-  # AI 工具
-  - GEOSITE,openai,🤖 人工智能
-  - GEOSITE,anthropic,🤖 人工智能
-  - GEOSITE,gemini,🤖 人工智能
-
-  # 电视专属：流媒体 (YouTube, Netflix 等)
-  - GEOSITE,youtube,📺 国际流媒体
-  - GEOSITE,netflix,📺 国际流媒体
-  - GEOSITE,disney,📺 国际流媒体
+  # 电视专属流媒体
+  - DOMAIN-SUFFIX,youtube.com,📺 国际流媒体
+  - DOMAIN-SUFFIX,googlevideo.com,📺 国际流媒体
+  - DOMAIN-SUFFIX,netflix.com,📺 国际流媒体
+  - DOMAIN-SUFFIX,netflix.net,📺 国际流媒体
+  - DOMAIN-SUFFIX,nflxvideo.net,📺 国际流媒体
 
   # 国内常用社交/视频
-  - GEOSITE,bilibili,📱 国内直连 (B站/知乎)
-  - GEOSITE,zhihu,📱 国内直连 (B站/知乎)
+  - DOMAIN-KEYWORD,bilibili,📱 国内直连 (B站/知乎)
+  - DOMAIN-KEYWORD,zhihu,📱 国内直连 (B站/知乎)
 
-  # 通用分类
-  - GEOSITE,google,🚀 节点选择
-  - GEOSITE,geolocation-!cn,🚀 节点选择
-
-  # 地理位置分流
+  # 地理位置局域网及国内 IP 直连
   - GEOIP,LAN,DIRECT,no-resolve
   - GEOIP,CN,DIRECT,no-resolve
   
