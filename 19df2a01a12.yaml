@@ -1,34 +1,43 @@
-# -------------------------------------------------------------------
-# Android TV / Chromecast 终极适配版 - Clash Meta (Mihomo)
-# -------------------------------------------------------------------
+# ===================================================================
+# 🚀 Clash Party / Mihomo (Clash Meta) Android 手机端纯血自建 VPS 稳定版配置
+# 核心特性：
+# 1. 【纯血 VPS 独享】仅包含您自建的 VPS 节点，绝无任何机场/公共订阅混入，干净纯粹
+# 2. 【国内三网极速优选】集成直连 REALITY + Cloudflare 电信/联通/移动官方优选 IP 矩阵
+# 3. 【零网络依赖】纯本地静态规则，彻底移除外部远程 Rule-Providers，杜绝首次导入卡死断网
+# 4. 【Android 原生防感叹号】解决 Captive Portal 连通性检测与 DoH 死锁
+# 5. 【双栈黑洞免疫】关闭 IPv6，规避 Android 4G/5G 蜂窝数据双栈丢包与泄露
+# 更新时间：2026-10-03
+# ===================================================================
 
-# 基础设置
-port: 7890
-socks-port: 7891
-mixed-port: 7892
-allow-lan: true
+# -------------------------------------------------------------------
+# 1. 基础运行与性能设置 (Basic Settings)
+# -------------------------------------------------------------------
+mixed-port: 7890
+allow-lan: false
 mode: rule
 log-level: info
-ipv6: false # 保持关闭，有效防止哈工程(HEU)校园网等环境下的 IPv6 路由黑洞
+ipv6: false                  # 关闭 IPv6，彻底解决 Android 4G/5G 蜂窝数据双栈黑洞
 external-controller: 127.0.0.1:9090
-unified-delay: true
-tcp-concurrent: true
-keep-alive-interval: 15 # 保持长连接，防止安卓电视休眠后断流
+unified-delay: true          # 启用统一延迟计算
+tcp-concurrent: true         # 启用 Happy Eyeballs 并发连接
+keep-alive-interval: 30
+find-process-mode: off
 
 # -------------------------------------------------------------------
-# TUN 模式 (Android 核心设置)
+# 2. TUN 虚拟网卡设置 (Android VpnService 原生适配)
 # -------------------------------------------------------------------
 tun:
   enable: true
-  stack: mixed
+  stack: mixed               # mixed / gvisor Android 端兼容性最佳
   dns-hijack:
     - "any:53"
+    - "tcp://any:53"
   auto-route: true
   auto-detect-interface: true
-  strict-route: true # 严格路由，防止安卓系统层流量绕过代理
-  endpoint-independent-nat: true # 提升 UDP 穿透率，对 4K HDR 串流和 QUIC 协议更友好
 
-# 流量探测
+# -------------------------------------------------------------------
+# 3. 流量嗅探 (Traffic Sniffer)
+# -------------------------------------------------------------------
 sniffer:
   enable: true
   sniff:
@@ -39,7 +48,7 @@ sniffer:
       override-destination: true
 
 # -------------------------------------------------------------------
-# DNS 优化 (适配 Android TV 与局域网投屏)
+# 4. DNS 深度优化 (解决 Android 连通性感叹号 & 杜绝 DoH 死锁)
 # -------------------------------------------------------------------
 dns:
   enable: true
@@ -47,158 +56,443 @@ dns:
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   listen: 0.0.0.0:53
+  
+  # 用于解析 DoH 自身的直连基础 DNS（彻底避免死锁）
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
+    - 180.184.1.1
+
+  # 系统核心白名单（防止 Android 误报网络无连接/黄感叹号）
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "localhost.ptlogin2.qq.com"
+    - "+.srv.nintendo.net"
+    - "+.stun.*.*"
+    - "+.stun.*.*.*"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "msftconnecttest.com"
+    - "msftncsi.com"
+    - "connectivitycheck.gstatic.com"
+    - "connectivitycheck.android.com"
+    - "clients3.google.com"
+    - "captive.apple.com"
+    - "connectivity-check.ubuntu.com"
+    - "detectportal.firefox.com"
+    - "pool.ntp.org"
+    - "*.pool.ntp.org"
+    - "time.*.com"
+    - "time.*.gov"
+    - "time.*.edu.cn"
+    - "time.*.apple.com"
+    - "time1.cloud.tencent.com"
+    - "*.m.mi.com"
+    - "*.battlenet.com.cn"
+    - "localhost.sec.qq.com"
+    - "+.push.apple.com"
+    - "push.dbankcloud.com"
+    - "*.push.hicloud.com"
+
+  # 国内主流 DNS (解析国内域名)
   nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+    - 180.184.1.1
     - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query
+
+  # 国外加密安全 DNS (防止 DNS 污染)
   fallback:
-    - https://dns.google/dns-query
     - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+    - https://doh.opendns.com/dns-query
+
   fallback-filter:
     geoip: true
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/4
-  # 关键：Fake-IP 过滤，确保电视时间同步、本地投屏和局域网发现不被代理错误接管
-  fake-ip-filter:
-    - '*.lan'
-    - '*.localdomain'
-    - '*.localhost'
-    - '*.local'
-    - '*.home.arpa'
-    - time.*.com
-    - time.*.gov
-    - time.*.edu
-    - time.windows.com
-    - time.apple.com
-    - ntp.*.com
-    - pool.ntp.org
 
 # -------------------------------------------------------------------
-# 代理节点
+# 5. 代理节点清单 (自建 VPS 直连 + Cloudflare 三网优选 IP 矩阵)
 # -------------------------------------------------------------------
 proxies:
-  # 节点 1: Reality
-  - name: "测试节点2-k523t2pu"
+  # 1. 宿主机直连 REALITY 极速出口 (XTLS-Vision 高性能低延迟，抗封锁能力最强)
+  - name: "⚡ 直连-RN新IP-REALITY-443"
     type: vless
-    server: 23.95.214.55
-    port: 52314
-    uuid: 752f32be-c3cf-4bf9-9c13-0ed931fe69a5
-    udp: true
-    tls: true
-    network: tcp
-    servername: swdist.apple.com
-    reality-opts:
-      public-key: g-Wofh6JtFrQ1yFaXWAy0kj_Oaxt1zRctT5B7NSW4CY
-      short-id: "93"
-    client-fingerprint: chrome
-
-  # 节点 2: Cloudflare 隧道 (HEU 优化)
-  - name: "HEU-Cloudflare-Bobo"
-    type: vless
-    server: bobowang.icu
+    server: 107.173.35.42
     port: 443
     uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
-    tls: true
+    network: tcp
     udp: true
-    skip-cert-verify: true 
+    tls: true
+    flow: xtls-rprx-vision
+    servername: gateway.icloud.com
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: UTn5urf-KqHGYO3T0awGJyzWAWfK7kofAKLQxKqFLWo
+      short-id: faf3c71f
+      support-x25519mlkem768: true
+
+  # 2. Cloudflare 官方 CDN 域名直连出口
+  - name: "⭐ CF-8443-域名直连"
+    type: vless
+    server: bobowang.icu
+    port: 8443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    tls: true
+    skip-cert-verify: true
     network: ws
     servername: bobowang.icu
-    alpn: [h2, http/1.1]
+    client-fingerprint: chrome
+    alpn:
+      - h2
+      - http/1.1
     ws-opts:
       path: /lab-stream
       headers:
         Host: bobowang.icu
+
+  # 3. 中国电信极速优选线路 (104.16.160.88)
+  - name: "⚡ CF-8443-电信优选 (104.16.160.88)"
+    type: vless
+    server: 104.16.160.88
+    port: 8443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    servername: bobowang.icu
     client-fingerprint: chrome
+    alpn:
+      - h2
+      - http/1.1
+    ws-opts:
+      path: /lab-stream
+      headers:
+        Host: bobowang.icu
+
+  # 4. 中国联通极速优选线路 (162.159.153.4)
+  - name: "⚡ CF-8443-联通优选 (162.159.153.4)"
+    type: vless
+    server: 162.159.153.4
+    port: 8443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    servername: bobowang.icu
+    client-fingerprint: chrome
+    alpn:
+      - h2
+      - http/1.1
+    ws-opts:
+      path: /lab-stream
+      headers:
+        Host: bobowang.icu
+
+  # 5. 中国移动极速优选线路 (162.159.192.1)
+  - name: "⚡ CF-8443-移动优选 (162.159.192.1)"
+    type: vless
+    server: 162.159.192.1
+    port: 8443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    servername: bobowang.icu
+    client-fingerprint: chrome
+    alpn:
+      - h2
+      - http/1.1
+    ws-opts:
+      path: /lab-stream
+      headers:
+        Host: bobowang.icu
+
+  # 6. 低延迟综合极速优选线路 (104.16.88.88)
+  - name: "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+    type: vless
+    server: 104.16.88.88
+    port: 8443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    servername: bobowang.icu
+    client-fingerprint: chrome
+    alpn:
+      - h2
+      - http/1.1
+    ws-opts:
+      path: /lab-stream
+      headers:
+        Host: bobowang.icu
+
+  # 7. Cloudflare Anycast 全球泛播优选线路 (172.67.182.182)
+  - name: "⚡ CF-8443-Anycast优选 (172.67.182.182)"
+    type: vless
+    server: 172.67.182.182
+    port: 8443
+    uuid: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    servername: bobowang.icu
+    client-fingerprint: chrome
+    alpn:
+      - h2
+      - http/1.1
+    ws-opts:
+      path: /lab-stream
+      headers:
+        Host: bobowang.icu
 
 # -------------------------------------------------------------------
-# 代理组
+# 6. 策略组设计 (Proxy Groups)
 # -------------------------------------------------------------------
 proxy-groups:
+  # 🚀 主选择器
   - name: 🚀 节点选择
     type: select
     proxies:
-      - ♻️ 自动选择
+      - "⚡ 自动优选 (推荐)"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
       - 🎯 全局直连
-      - "HEU-Cloudflare-Bobo"
-      - "测试节点2-k523t2pu"
 
-  - name: 📺 国际流媒体
-    type: select
+  # ⚡ 自动优选 (自动测速选择最低延迟的可用节点)
+  - name: ⚡ 自动优选 (推荐)
+    type: url-test
+    url: http://cp.cloudflare.com/generate_204
+    interval: 300
+    tolerance: 50
     proxies:
-      - 🚀 节点选择
-      - "HEU-Cloudflare-Bobo"
-      - "测试节点2-k523t2pu"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
 
+  # 🤖 人工智能 (ChatGPT / Claude / Gemini / Perplexity 专用分流)
   - name: 🤖 人工智能
     type: select
     proxies:
       - 🚀 节点选择
-      - "HEU-Cloudflare-Bobo"
-      - "测试节点2-k523t2pu"
+      - "⚡ 自动优选 (推荐)"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
       - 🎯 全局直连
 
-  - name: ♻️ 自动选择
-    type: url-test
-    url: https://www.gstatic.com/generate_204 # 改用 Google 电视端测速域名
-    interval: 300
-    tolerance: 50
+  # 📹 油管视频 (YouTube / YouTube Music 专用分流)
+  - name: 📹 油管视频
+    type: select
     proxies:
-      - "HEU-Cloudflare-Bobo"
-      - "测试节点2-k523t2pu"
+      - 🚀 节点选择
+      - "⚡ 自动优选 (推荐)"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
+      - 🎯 全局直连
 
-  - name: 📱 国内直连 (B站/知乎)
+  # 🍿 国际媒体 (Netflix / Disney+ / Spotify 等)
+  - name: 🍿 国际媒体
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - "⚡ 自动优选 (推荐)"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
+      - 🎯 全局直连
+
+  # 📲 国际社交 (Telegram / Twitter / Discord / GitHub 等)
+  - name: 📲 国际社交
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - "⚡ 自动优选 (推荐)"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
+      - 🎯 全局直连
+
+  # 🇬 谷歌服务 (Google Play 商店、服务框架等)
+  - name: 🇬 谷歌服务
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - "⚡ 自动优选 (推荐)"
+      - "⚡ 直连-RN新IP-REALITY-443"
+      - "⭐ CF-8443-域名直连"
+      - "⚡ CF-8443-电信优选 (104.16.160.88)"
+      - "⚡ CF-8443-联通优选 (162.159.153.4)"
+      - "⚡ CF-8443-移动优选 (162.159.192.1)"
+      - "⚡ CF-8443-低延迟优选 (104.16.88.88)"
+      - "⚡ CF-8443-Anycast优选 (172.67.182.182)"
+      - 🎯 全局直连
+
+  # 📱 社交/视频 (国内应用直连)
+  - name: 📱 社交/视频 (B站/知乎)
     type: select
     proxies:
       - 🎯 全局直连
       - 🚀 节点选择
 
+  # 🛑 广告拦截
+  - name: 🛑 广告拦截
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+
+  # 🧱 漏网之鱼 (兜底规则)
   - name: 🧱 漏网之鱼
     type: select
     proxies:
       - 🚀 节点选择
       - 🎯 全局直连
 
+  # 🎯 全局直连
   - name: 🎯 全局直连
     type: select
     proxies:
       - DIRECT
 
 # -------------------------------------------------------------------
-# 规则逻辑 (移除外部 rule-providers，改用纯本地经典规则，防止设备断网)
+# 7. 纯本地静态分流规则 (0 外部依赖，首次导入秒连，从上至下严格匹配)
 # -------------------------------------------------------------------
 rules:
-  # 局域网投屏、多播、组播直连 (Chromecast / DLNA 投屏必备)
-  - DOMAIN-SUFFIX,local,DIRECT
-  - IP-CIDR,224.0.0.0/3,DIRECT,no-resolve
-  - IP-CIDR,239.255.255.250/32,DIRECT,no-resolve
-  - DST-PORT,8008,DIRECT # Chromecast 局域网控制与发现端口
-  - DST-PORT,8009,DIRECT
-  - DST-PORT,8443,DIRECT # Cast TLS
+  # 1. 本地局域网直接放行
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.20.10.0/24,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
 
-  # AI 工具分流 (改用域名后缀匹配，彻底解决旧版 geosite.dat 报错)
+  # 2. Android 连通性测试直连放行 (杜绝 WiFi / 移动信号黄感叹号)
+  - DOMAIN,connectivitycheck.gstatic.com,🎯 全局直连
+  - DOMAIN,connectivitycheck.android.com,🎯 全局直连
+  - DOMAIN,clients3.google.com,🎯 全局直连
+  - DOMAIN,captive.apple.com,🎯 全局直连
+
+  # 3. AI 智能工具分流
   - DOMAIN-SUFFIX,openai.com,🤖 人工智能
   - DOMAIN-SUFFIX,chatgpt.com,🤖 人工智能
+  - DOMAIN-SUFFIX,oaistatic.com,🤖 人工智能
+  - DOMAIN-SUFFIX,oaiusercontent.com,🤖 人工智能
+  - DOMAIN-SUFFIX,sora.com,🤖 人工智能
   - DOMAIN-SUFFIX,anthropic.com,🤖 人工智能
   - DOMAIN-SUFFIX,claude.ai,🤖 人工智能
-  - DOMAIN-SUFFIX,google.com,🤖 人工智能 # 电视端 Gemini 依赖 google 核心主域名
+  - DOMAIN-SUFFIX,claudeusercontent.com,🤖 人工智能
+  - DOMAIN-SUFFIX,gemini.google.com,🤖 人工智能
+  - DOMAIN-SUFFIX,bard.google.com,🤖 人工智能
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,🤖 人工智能
+  - DOMAIN-SUFFIX,aistudio.google.com,🤖 人工智能
+  - DOMAIN-SUFFIX,perplexity.ai,🤖 人工智能
+  - DOMAIN-SUFFIX,cursor.com,🤖 人工智能
+  - DOMAIN-SUFFIX,cursor.sh,🤖 人工智能
+  - DOMAIN-SUFFIX,x.ai,🤖 人工智能
+  - DOMAIN-KEYWORD,openai,🤖 人工智能
+  - DOMAIN-KEYWORD,anthropic,🤖 人工智能
+  - DOMAIN-KEYWORD,claude,🤖 人工智能
 
-  # 电视专属流媒体
-  - DOMAIN-SUFFIX,youtube.com,📺 国际流媒体
-  - DOMAIN-SUFFIX,googlevideo.com,📺 国际流媒体
-  - DOMAIN-SUFFIX,netflix.com,📺 国际流媒体
-  - DOMAIN-SUFFIX,netflix.net,📺 国际流媒体
-  - DOMAIN-SUFFIX,nflxvideo.net,📺 国际流媒体
+  # 4. YouTube 专属分流
+  - DOMAIN-KEYWORD,youtube,📹 油管视频
+  - DOMAIN-SUFFIX,youtube.com,📹 油管视频
+  - DOMAIN-SUFFIX,youtu.be,📹 油管视频
+  - DOMAIN-SUFFIX,googlevideo.com,📹 油管视频
+  - DOMAIN-SUFFIX,ytimg.com,📹 油管视频
+  - DOMAIN-SUFFIX,yt.be,📹 油管视频
 
-  # 国内常用社交/视频
-  - DOMAIN-KEYWORD,bilibili,📱 国内直连 (B站/知乎)
-  - DOMAIN-KEYWORD,zhihu,📱 国内直连 (B站/知乎)
+  # 5. 国际流媒体
+  - DOMAIN-SUFFIX,netflix.com,🍿 国际媒体
+  - DOMAIN-SUFFIX,netflix.net,🍿 国际媒体
+  - DOMAIN-SUFFIX,nflximg.net,🍿 国际媒体
+  - DOMAIN-SUFFIX,nflxvideo.net,🍿 国际媒体
+  - DOMAIN-SUFFIX,disneyplus.com,🍿 国际媒体
+  - DOMAIN-SUFFIX,spotify.com,🍿 国际媒体
+  - DOMAIN-SUFFIX,spotifycdn.com,🍿 国际媒体
 
-  # 地理位置局域网及国内 IP 直连
-  - GEOIP,LAN,DIRECT,no-resolve
-  - GEOIP,CN,DIRECT,no-resolve
-  
-  # 最终兜底
-  - MATCH,🧱 漏网之鱼
+  # 6. Telegram 专有分流 (含移动端 IP 段强规则，防止断流)
+  - DOMAIN-SUFFIX,telegram.org,📲 国际社交
+  - DOMAIN-SUFFIX,t.me,📲 国际社交
+  - DOMAIN-SUFFIX,telegram.me,📲 国际社交
+  - IP-CIDR,91.108.4.0/22,📲 国际社交,no-resolve
+  - IP-CIDR,91.108.8.0/22,📲 国际社交,no-resolve
+  - IP-CIDR,91.108.56.0/22,📲 国际社交,no-resolve
+  - IP-CIDR,149.154.160.0/20,📲 国际社交,no-resolve
+  - IP-CIDR,149.154.164.0/22,📲 国际社交,no-resolve
+
+  # 7. 国际社交与开发
+  - DOMAIN-SUFFIX,twitter.com,📲 国际社交
+  - DOMAIN-SUFFIX,x.com,📲 国际社交
+  - DOMAIN-SUFFIX,twimg.com,📲 国际社交
+  - DOMAIN-SUFFIX,discord.com,📲 国际社交
+  - DOMAIN-SUFFIX,discord.gg,📲 国际社交
+  - DOMAIN-SUFFIX,github.com,📲 国际社交
+  - DOMAIN-SUFFIX,githubusercontent.com,📲 国际社交
+
+  # 8. Google 全家桶
+  - DOMAIN-SUFFIX,google.com,🇬 谷歌服务
+  - DOMAIN-SUFFIX,google.com.hk,🇬 谷歌服务
+  - DOMAIN-SUFFIX,googleapis.com,🇬 谷歌服务
+  - DOMAIN-SUFFIX,gstatic.com,🇬 谷歌服务
+  - DOMAIN-SUFFIX,googleusercontent.com,🇬 谷歌服务
+  - DOMAIN-SUFFIX,gvt1.com,🇬 谷歌服务
+  - DOMAIN-SUFFIX,android.com,🇬 谷歌服务
+
+  # 9. 国内主流应用与网站直连
+  - DOMAIN-KEYWORD,bilibili,📱 社交/视频 (B站/知乎)
+  - DOMAIN-KEYWORD,zhihu,📱 社交/视频 (B站/知乎)
+  - DOMAIN-SUFFIX,douyin.com,📱 社交/视频 (B站/知乎)
+  - DOMAIN-SUFFIX,weibo.com,📱 社交/视频 (B站/知乎)
+  - DOMAIN-SUFFIX,baidu.com,🎯 全局直连
+  - DOMAIN-SUFFIX,qq.com,🎯 全局直连
+  - DOMAIN-SUFFIX,tencent.com,🎯 全局直连
+  - DOMAIN-SUFFIX,taobao.com,🎯 全局直连
+  - DOMAIN-SUFFIX,alipay.com,🎯 全局直连
+  - DOMAIN-SUFFIX,jd.com,🎯 全局直连
+  - DOMAIN-SUFFIX,163.com,🎯 全局直连
+  - DOMAIN-SUFFIX,aliyun.com,🎯 全局直连
+  - DOMAIN-SUFFIX,bytedance.com,🎯 全局直连
+  - DOMAIN-SUFFIX,cn,🎯 全局直连
+
+  # 10. 国内 IP 直连绕过 (基于 GEOIP)
+  - GEOIP,CN,🎯 全局直连,no-resolve
+
+  # 11. 其余未匹配流量走主节点选择
+  - MATCH,🚀 节点选择
