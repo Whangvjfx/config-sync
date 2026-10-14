@@ -2,11 +2,11 @@
 # 🚀 Clash Party / Mihomo (Clash Meta) Android 手机端纯血自建 VPS 稳定版配置
 # 核心特性：
 # 1. 【纯血 VPS 独享】仅包含您自建的 VPS 节点，绝无任何机场/公共订阅混入，干净纯粹
-# 2. 【国内三网极速优选】集成直连 REALITY + Cloudflare 电信/联通/移动官方优选 IP 矩阵
+# 2. 【国内三网极速优选】集成直连 REALITY + Hysteria2 + Cloudflare 电信/联通/移动官方优选 IP 矩阵
 # 3. 【零网络依赖】纯本地静态规则，彻底移除外部远程 Rule-Providers，杜绝首次导入卡死断网
 # 4. 【Android 原生防感叹号】解决 Captive Portal 连通性检测与 DoH 死锁
 # 5. 【双栈黑洞免疫】关闭 IPv6，规避 Android 4G/5G 蜂窝数据双栈丢包与泄露
-# 更新时间：2026-10-03
+# 更新时间：2026-10-14
 # ===================================================================
 
 # -------------------------------------------------------------------
@@ -116,7 +116,7 @@ dns:
       - 240.0.0.0/4
 
 # -------------------------------------------------------------------
-# 5. 代理节点清单 (自建 VPS 直连 + Cloudflare 三网优选 IP 矩阵)
+# 5. 代理节点清单 (自建 VPS 直连 + Hysteria2 + Cloudflare 三网优选 IP 矩阵)
 # -------------------------------------------------------------------
 proxies:
   # 1. 宿主机直连 REALITY 极速出口 (XTLS-Vision 高性能低延迟，抗封锁能力最强)
@@ -136,7 +136,20 @@ proxies:
       short-id: faf3c71f
       support-x25519mlkem768: true
 
-  # 2. Cloudflare 官方 CDN 域名直连出口
+  # 2. 宿主机直连 Hysteria2 极速出口 (QUIC 协议 + 端口跳跃 + Salamander 混淆)
+  - name: "RN-42-Hysteria2-极速"
+    type: hysteria2
+    server: 107.173.35.42
+    port: 443
+    ports: 20000-50000
+    password: d12d6ddf-6bab-4ca8-aabb-40bbe4f1463c
+    udp: true
+    sni: gateway.icloud.com
+    skip-cert-verify: true
+    obfs: salamander
+    obfs-password: obfs_hy2_racknerd
+
+  # 3. Cloudflare 官方 CDN 域名直连出口
   - name: "⭐ CF-8443-域名直连"
     type: vless
     server: bobowang.icu
@@ -156,7 +169,7 @@ proxies:
       headers:
         Host: bobowang.icu
 
-  # 3. 中国电信极速优选线路 (104.16.160.88)
+  # 4. 中国电信极速优选线路 (104.16.160.88)
   - name: "⚡ CF-8443-电信优选 (104.16.160.88)"
     type: vless
     server: 104.16.160.88
@@ -176,7 +189,7 @@ proxies:
       headers:
         Host: bobowang.icu
 
-  # 4. 中国联通极速优选线路 (162.159.153.4)
+  # 5. 中国联通极速优选线路 (162.159.153.4)
   - name: "⚡ CF-8443-联通优选 (162.159.153.4)"
     type: vless
     server: 162.159.153.4
@@ -196,7 +209,7 @@ proxies:
       headers:
         Host: bobowang.icu
 
-  # 5. 中国移动极速优选线路 (162.159.192.1)
+  # 6. 中国移动极速优选线路 (162.159.192.1)
   - name: "⚡ CF-8443-移动优选 (162.159.192.1)"
     type: vless
     server: 162.159.192.1
@@ -216,7 +229,7 @@ proxies:
       headers:
         Host: bobowang.icu
 
-  # 6. 低延迟综合极速优选线路 (104.16.88.88)
+  # 7. 低延迟综合极速优选线路 (104.16.88.88)
   - name: "⚡ CF-8443-低延迟优选 (104.16.88.88)"
     type: vless
     server: 104.16.88.88
@@ -236,7 +249,7 @@ proxies:
       headers:
         Host: bobowang.icu
 
-  # 7. Cloudflare Anycast 全球泛播优选线路 (172.67.182.182)
+  # 8. Cloudflare Anycast 全球泛播优选线路 (172.67.182.182)
   - name: "⚡ CF-8443-Anycast优选 (172.67.182.182)"
     type: vless
     server: 172.67.182.182
@@ -266,6 +279,7 @@ proxy-groups:
     proxies:
       - "⚡ 自动优选 (推荐)"
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
@@ -282,6 +296,7 @@ proxy-groups:
     tolerance: 50
     proxies:
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
@@ -296,6 +311,7 @@ proxy-groups:
       - 🚀 节点选择
       - "⚡ 自动优选 (推荐)"
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
@@ -311,6 +327,7 @@ proxy-groups:
       - 🚀 节点选择
       - "⚡ 自动优选 (推荐)"
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
@@ -326,6 +343,7 @@ proxy-groups:
       - 🚀 节点选择
       - "⚡ 自动优选 (推荐)"
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
@@ -341,6 +359,7 @@ proxy-groups:
       - 🚀 节点选择
       - "⚡ 自动优选 (推荐)"
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
@@ -356,6 +375,7 @@ proxy-groups:
       - 🚀 节点选择
       - "⚡ 自动优选 (推荐)"
       - "⚡ 直连-RN新IP-REALITY-443"
+      - "RN-42-Hysteria2-极速"
       - "⭐ CF-8443-域名直连"
       - "⚡ CF-8443-电信优选 (104.16.160.88)"
       - "⚡ CF-8443-联通优选 (162.159.153.4)"
